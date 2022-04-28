@@ -8,6 +8,9 @@ from PIL import Image
 
 # st.markdown('<small>test</small>', unsafe_allow_html=True)
 SCENARIO_SETTINGS = {}
+with open('pricing_parameters.json') as f:
+    PRICING = json.load(f)
+    f.close()
 
 def run_app():
     # Page settings
@@ -67,35 +70,42 @@ def run_app():
 
         st.markdown("### Revenue Settings")
         with st.expander("Interchange"):
-            SCENARIO_SETTINGS.update({'net_ic': st.slider("Net Interchange:", min_value=1.0, max_value=3.0, value=2.0, step=0.1, key="net_ic")})
+            SCENARIO_SETTINGS.update({'net_ic': st.slider("Net Interchange (%):", min_value=1.0, max_value=3.0, value=2.0, step=0.1, key="net_ic")})
         
         with st.expander("Interest on Deposits"):
             SCENARIO_SETTINGS.update({'yield_curve_flag': st.checkbox("Use current yield curve?")})
-            if not SCENARIO_SETTINGS.get('yield_curve_flag'):
-                fed_rate = st.number_input("Flat Fed Rate (bps):", value=50, min_value=0, max_value=200, step=25, key="fed_rate")
+            if SCENARIO_SETTINGS.get('yield_curve_flag'):
+                #TODO - add loading in a static page for fed rate
+                pass
+            else:
+                SCENARIO_SETTINGS.update({'fed_rate': st.slider("Flat Fed Rate (%):", value=0.50, min_value=0.0, max_value=2.50, step=0.25, key="fed_rate")})
         
         st.markdown("### Other Settings")
         with st.expander("Chart Settings"):
-            SCENARIO_SETTINGS.update({'annualize_flag': st.checkbox("Annualize monthly values?")})
+            SCENARIO_SETTINGS.update({'x_axis': st.selectbox("X-axis:", options=["By Date", "By Number of Companies"], index=0)})
+            SCENARIO_SETTINGS.update({'annualize_flag': st.checkbox("Annualize values?")})
             SCENARIO_SETTINGS.update({'chart_freq': st.selectbox("Plot Frequency:", options=['Monthly', 'Quarterly'])})
-            SCENARIO_SETTINGS.update({'vendor_exc': st.multiselect("Vendor Exclusions:", options=['Stripe','Unit','Treasury Prime','Column'])})
+            SCENARIO_SETTINGS.update({'vendor_exc': st.multiselect("Vendor Exclusions:", options=['stripe','unit','treasury_prime','column'])})
 
-    # Data Computation
+    ## DATA COMPUATION
+    # Load in migration plan
     migration_plan = pd.read_csv('migration_assumptions.csv', index_col=0, parse_dates=[0])
 
-    # Resample if needed - if quarterly
+    # Get list of vendors for this run
+    VENDORS = list(set(PRICING.keys()) - set(SCENARIO_SETTINGS.get('vendor_exc')))
+
+    # Resample data if needed - if quarterly
     if SCENARIO_SETTINGS.get('chart_freq') == 'Quarterly':
         migration_plan = migration_plan.resample('Q').agg({'monthly_under_loi': 'sum', 
                                                            'total_under_loi': 'last',
                                                            'onboarding': 'sum',
                                                            'total_onboarded': 'last'})
-    # st.dataframe(migration_plan)
 
     # Key Data
     key_data = data_fns.generate_key_data(migration_plan, SCENARIO_SETTINGS)
-    # st.dataframe(key_data)
 
     # platform_rev
+    rev_data = data_fns.generate_rev_data(key_data, SCENARIO_SETTINGS, PRICING, VENDORS)
 
     # platform_costs
 
@@ -106,48 +116,135 @@ def run_app():
     # Main body
     # 1. Description and intro
     with st.container():
-        st.markdown("### Description")
-        st.write("This is some text to explain what this is.")
+        with st.expander("Description"):
+            st.write("This is some  text to explain what this is.")
 
     # 2. Platform growth
     with st.container():
-        st.markdown("### Company Onboard & Platform Growth")
+        st.markdown("## Company Onboarding & Platform Growth")
 
         # Plot onboarding growth
         st.plotly_chart(plt.plot_platform_growth(migration_plan, freq=SCENARIO_SETTINGS.get('chart_freq')), use_container_width=True)
         
-        # Plot deposits growth
-        st.plotly_chart(plt.plot_deposits_growth(key_data), use_container_width=True)
+        col1, col2 = st.columns(2)
+        with col1:
+            # Plot deposits growth
+            st.plotly_chart(plt.plot_deposits_growth(key_data), use_container_width=True)
 
-        # Plot Outgoing transactions growth
-        st.plotly_chart(plt.plot_outgoing_trans_mix(key_data, freq=SCENARIO_SETTINGS.get('chart_freq')),  use_container_width=True)
+        with col2:
+            # Plot Outgoing transactions growth
+            st.plotly_chart(plt.plot_outgoing_trans_mix(key_data, freq=SCENARIO_SETTINGS.get('chart_freq')),  use_container_width=True)
 
-        
         
         st.write("Have some text here about the assumed migration speed.")
         
         st.markdown("<small>* Assumed 75 companies under LOI by end of Q3.</small>", unsafe_allow_html=True)
-        
-        
     
     # Base Case Results
-    st.markdown("### Platform Base Case")
+    st.markdown("---")
+    st.markdown("## Platform Base Case")
     st.write("Some comments here about what the base case is")
     # 3. P/L
     with st.container():
-        st.markdown("##### Net Income")
+        st.markdown("#### Net Income")
 
     # 4. Revenue
+    st.markdown("---")
     with st.container():
-        st.markdown("##### Revenue")
+        st.markdown("#### Revenue")
 
+        # Total revenue
+        st.plotly_chart(plt.plot_revenue_comparison(rev_data, 
+                                                    VENDORS, 
+                                                    freq=SCENARIO_SETTINGS.get('chart_freq'), 
+                                                    annualize_flag=SCENARIO_SETTINGS.get('annualize_flag')), use_container_width=True)
+
+        # 1 x 2 - one for deposits, one for interchange
+        with st.container():
+            col1, col2 = st.columns(2)
+
+            with col1:
+                st.plotly_chart(plt.plot_revenue_comparison(rev_data, 
+                                                            VENDORS, 
+                                                            freq=SCENARIO_SETTINGS.get('chart_freq'), 
+                                                            annualize_flag=SCENARIO_SETTINGS.get('annualize_flag'),
+                                                            type = "Interchange"), use_container_width=True)
+
+            with col2:
+                st.plotly_chart(plt.plot_revenue_comparison(rev_data, 
+                                                            VENDORS, 
+                                                            freq=SCENARIO_SETTINGS.get('chart_freq'), 
+                                                            annualize_flag=SCENARIO_SETTINGS.get('annualize_flag'),
+                                                            type = "Interest"), use_container_width=True)
+                
+
+        
+
+        # Effective interchange share and comparison by thresholds
+        # st.plotly_chart(plt.plot_interchange_comparison(rev_data, key_data["Card Spend"], VENDORS, SCENARIO_SETTINGS.get('net_ic'), PRICING), use_container_width=True)
+
+        # Some comments
+        st.write("some comments here")
+
+        # Columns to have commentary on vendor revenue
+        with st.expander("Revenue Details"):
+            col1, col2, col3 = st.columns(3)
+
+            with col1:
+                st.markdown("##### Unit")
+                st.markdown('###### Interchange')
+                st.markdown('###### Interest')
+
+
+            with col2:
+                st.markdown("##### Stripe")
+                st.markdown('###### Interchange')
+                st.markdown('###### Interest')
+
+            with col3:
+                st.markdown("##### Treasury Prime")
+                st.markdown('###### Interchange')
+                st.markdown('###### Interest')               
+
+        # st.markdown('##### By Vendor')
+        # for v in VENDORS:
+        #     with st.container():
+        #         col1, col2 = st.columns([4, 1])
+        #         with col1:
+        #             st.plotly_chart(plt.plot_vendor_revenue_growth(rev_data, v, freq=SCENARIO_SETTINGS.get('chart_freq'), annualize_flag=SCENARIO_SETTINGS.get('annualize_flag')), use_container_width=True)
+
+        #         with col2:
+        #             st.write("this is some text on the side") # look up read me by vendor name
+
+            # TP only has debit card program, so this assumes debit spend only
+
+    st.markdown("---")
     # 5. Costs
     with st.container():
-        st.markdown("##### Costs")
+        st.markdown("#### Costs")
+
+        # Payments (Stripe)
 
     # 6. Scenario Variation: Digital Transition
+    st.markdown("---")
     with st.container():
         st.markdown("### Scenario Variation: Network Digital Transition")
+
+    # 7. Data Tables
+    st.markdown("---")
+    st.markdown("#### Data")
+    with st.expander("Onboarding Plan"):
+        st.dataframe(migration_plan)
+
+    with st.expander("Transactions Growth"):
+        st.dataframe(key_data)
+
+    with st.expander("Revenue Data"):
+        st.dataframe(rev_data)
+
+    with st.expander("Cost Data"):
+        # st.dataframe(rev_data)
+        pass
 
 if __name__ == '__main__':
     run_app()
