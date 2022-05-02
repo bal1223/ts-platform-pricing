@@ -3,13 +3,15 @@ import pandas as pd
 import numpy as np
 import streamlit as st
 
-# monthly_under_loi	total_under_loi	onboarding	total_onboarded
 def generate_key_data(mp, scenario_settings):
     """
         Function to take a migration growth plan and scenario settings to 
         create a dataframe of assumed growth in accounts, deposits, spend volume, etc.
         to be used in plots and dynamic text.
     """
+    # TODO: factor in change in money movement methods over time for digital transformation scenario.
+    # Updating data here will flow through (will want a separate dataframe on the app though)
+
     # if scenario_settings.get('x_axis') == 'By Date':
     key_data = pd.DataFrame(index=mp.index)
 
@@ -17,8 +19,8 @@ def generate_key_data(mp, scenario_settings):
     key_data["No. of Companies"] = mp.total_onboarded
     
     # Accounts
-    key_data['New Accounts'] = mp.onboarding * scenario_settings.get('acct_cnt')
-    key_data['Total Accounts'] = mp.total_onboarded * scenario_settings.get('acct_cnt')
+    key_data['New Accounts'] = round(mp.onboarding * scenario_settings.get('acct_cnt'))
+    key_data['Total Accounts'] = round(mp.total_onboarded * scenario_settings.get('acct_cnt'))
     
     # Transaction Out
     key_data['Card Spend'] = mp.total_onboarded * scenario_settings.get('cc_out')/100. * scenario_settings.get('out_trans_amt')
@@ -38,7 +40,6 @@ def generate_key_data(mp, scenario_settings):
 
     return key_data
 
-
 def generate_rev_data(kd, scenario_settings, pricing_settings, vendors):
     """Function to generate the dataframe of revenue values by vendor to be plotted"""
     rev_data = pd.DataFrame(index=kd.index)
@@ -52,10 +53,123 @@ def generate_rev_data(kd, scenario_settings, pricing_settings, vendors):
             # Interchange Revenue
             rev_data[f"{k}_ic_rev"] = rev_interchange(kd["Card Spend"], scenario_settings.get("net_ic"), v['revenue']['interchange'])
 
+            # Total revnenue
+            rev_data[f"{k}_total"] = rev_data[f"{k}_int_on_dep_rev"] + rev_data[f"{k}_ic_rev"] 
+
     if scenario_settings.get('annualize_flag'):
         rev_data = annualize(rev_data, scenario_settings.get('chart_freq'))
         
     return rev_data
+
+def generate_cost_data(kd, scenario_settings, pricing_settings, vendors):
+    cost_data = pd.DataFrame(index=kd.index)
+
+    for k, v in pricing_settings.items():
+        # Skip if not selected to evaluate
+        if k in vendors:
+            # Base platform fee for accounts and cards
+            cost_data[f"{k}_platform_fee"] = costs_platform(v['costs']['platform'], len(kd), freq=scenario_settings.get("chart_freq"))
+
+            # Accounts (new, old) + card issuance (physical, virtual)
+            cost_data[f"{k}_accts_and_cards"] = costs_accts_and_cards(v['costs']['accounts'], v['costs']['cards'], kd)
+
+            # Money movement items
+            # checks issued
+            checks_out_base = v["costs"]["money_movement"]["check_out_fee"] * \
+                            scenario_settings.get("out_trans_cnt") * \
+                            scenario_settings.get("checks_out") / 100.
+
+            # checks received to deposit
+            checks_in_base = v["costs"]["money_movement"]["check_in_fee"] * \
+                            scenario_settings.get("inc_trans_cnt") * \
+                            scenario_settings.get("checks_in") / 100.
+
+            # Other money movement - bill pay, wires, ACH
+            ach_out = v["costs"]["money_movement"]["ach_out_fee"] * \
+                            scenario_settings.get("out_trans_cnt") * \
+                            scenario_settings.get("ach_out") / 100.
+
+            wires_out = v["costs"]["money_movement"]["dom_wire_out_fee"] * \
+                            scenario_settings.get("out_trans_cnt") * \
+                            scenario_settings.get("wires_out") / 100.
+
+            bill_pay_out = v["costs"]["money_movement"]["bill_pay_fee"] * \
+                            scenario_settings.get("out_trans_cnt") * \
+                            scenario_settings.get("bill_pay_out") / 100.
+
+            # If key data index is time, then number of companies is a column
+            if scenario_settings.get("x_axis") == "By Date":
+                cost_data[f"{k}_check_issuance"] = checks_out_base * kd["No. of Companies"]
+                cost_data[f"{k}_check_deposit"] = checks_in_base * kd["No. of Companies"]
+                cost_data[f"{k}_other_mm"] = (ach_out + wires_out + bill_pay_out) * kd["No. of Companies"]
+
+
+            # If key data index is num. of companies, then it is the index
+            if scenario_settings.get('x_axis') == "By Number of Companies":
+                cost_data[f"{k}_check_issuance"] = checks_out_base * kd.index
+                cost_data[f"{k}_check_deposit"] = checks_in_base * kd.index
+                cost_data[f"{k}_other_money_movement"] = (ach_out + wires_out + bill_pay_out) * kd.index
+            
+            # Total costs
+            cost_data[f"{k}_total"] = cost_data[[c for c in cost_data.columns if k in c]].sum(axis=1)
+
+    if scenario_settings.get('annualize_flag'):
+        cost_data = annualize(cost_data, scenario_settings.get('chart_freq'))
+
+    return cost_data
+
+def costs_platform(fee_dict, n, freq):
+    """Takes in a dictionary of fee terms and returns a list of values of kd_index length"""
+    plat_fees = []
+    for i in range(n):
+        tmp_fee = 0
+
+        # Include implementation fee at month 1
+        if i == 0:
+            tmp_fee += fee_dict.get("implementation_fee")
+
+        # Add base monthly fee
+        tmp_fee += fee_dict.get("base_monthly_fee")
+
+        # Add discounts, if applicable
+        if fee_dict.get("discounts"):
+            # If quarterly simply sum up the discounts since they would be realized in the first 3 months anyway
+            if freq == "Quarterly" and i == 0:
+                tmp_fee -= sum(fee_dict["discounts"].values())
+                
+            # Check if this 
+            if freq == "Monthly" and str(i) in fee_dict["discounts"].keys():
+                tmp_fee -= fee_dict["discounts"].get(str(i))
+
+        # Add card program
+        tmp_fee += fee_dict.get("card_program_fee")
+
+        plat_fees.append(tmp_fee)
+
+    return plat_fees
+
+
+def costs_accts_and_cards(acct_costs, card_costs, kd):
+    """Compute costs associated with new and existing accounts and card issuance activities
+        based on key input volume
+    """
+    acct_and_card_costs = []
+    for i in range(len(kd)):
+        tmp_spend = 0
+        # New accounts
+        tmp_spend += kd["New Accounts"].values[i] * acct_costs.get('new_fee')
+
+        # maintain accounts - lag one time period. Will slightly underestimate quarterly costs
+        if i > 0:
+            tmp_spend += kd["Total Accounts"].values[i-1] * acct_costs.get('ongoing_fee')
+        
+        # card issuance
+        tmp_spend += kd["Physical Cards Issued"].values[i] * card_costs.get('physical_card_fee')
+        tmp_spend += kd["Virtual Cards Issued"].values[i] * card_costs.get('virtual_card_fee')
+
+        acct_and_card_costs.append(tmp_spend)
+
+    return acct_and_card_costs
 
 def annualize(df, freq):
     """helper function to annualize the data"""

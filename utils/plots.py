@@ -132,12 +132,13 @@ def plot_interchange_comparison(rd, card_spend, vendors, net_ic, pricing):
 
     return fig
 
-def plot_revenue_comparison(rd, vendors, freq, annualize_flag, type="Total"):
+def plot_revenue_comparison(rd, kd, vendors, freq, annualize_flag, type="Total"):
     """Total revenue on platforms"""
     data = []
+    # fig = make_subplots(rows=2, cols=1, row_heights=[0.8, 0.2])
     for v in vendors:
         if type == "Total":
-            tmp_y = rd[f"{v}_ic_rev"] + rd[f"{v}_int_on_dep_rev"]
+            tmp_y = rd[f"{v}_total"]
         if type == "Interchange":
             tmp_y = rd[f"{v}_ic_rev"]
         if type == "Interest":
@@ -152,9 +153,144 @@ def plot_revenue_comparison(rd, vendors, freq, annualize_flag, type="Total"):
         )
         data.append(tmp_trace)
 
+        # fig.add_trace(
+        #     go.Scatter(
+        #          x=rd.index,
+        #          y=tmp_y,
+        #          name=v,
+        #          marker=dict(size=10),
+        #          line=dict(width=2), 
+        #     ), row=1, col=1
+        # )
+
     fig = go.Figure(data=data, layout=BASIC_LAYOUT)
 
     title = f"{type} {freq} Revenue By Vendor"
+    if annualize_flag:
+        title += " (Annualized)"
+
+    fig.update_layout(
+        yaxis=dict(title="$"),
+        title=title,
+        hovermode="x unified"
+    )
+    return fig
+
+def plot_cost_comparison(cd, vendors, freq, annualize_flag):
+    """Total costs by vendor"""
+    data = []
+    for v in vendors:
+        tmp_trace = go.Scatter(
+            x=cd.index,
+            y=cd[f"{v}_total"],
+            name=v,
+            marker=dict(size=10),
+            line=dict(width=2), 
+        )
+        data.append(tmp_trace)
+
+    fig = go.Figure(data=data, layout=BASIC_LAYOUT)
+
+    title = f"Total {freq} Cost By Vendor"
+    if annualize_flag:
+        title += " (Annualized)"
+
+    fig.update_layout(
+        yaxis=dict(title="$"),
+        title=title,
+        hovermode="x unified"
+    )
+    return fig
+
+def plot_vendor_costs_by_category(cd, vendor, freq, annualize_flag):
+    """Plot an individual vendor cost breakdown"""
+    data = []
+    cols = [c for c in cd.columns if vendor in c and 'total' not in c]
+    for c in cols:
+        tmp_trace = go.Scatter(
+            x=cd.index,
+            y=cd[c],
+            name=c.replace(vendor, "").replace("_", " ").title(),
+            stackgroup='one'
+        )
+        data.append(tmp_trace)
+
+    fig=go.Figure(data=data, layout=BASIC_LAYOUT)
+
+    title = f"{vendor.title()} {freq} Cost Breakdown"
+    if annualize_flag:
+        title += " (Annualized)"
+    
+    fig.update_layout(
+        yaxis=dict(title="$"),
+        hovermode="x unified",
+        title=title
+    )
+    return fig
+
+def plot_pnl_comparison(rd, cd, vendors, freq, annualize_flag):
+    """Net cost/profit for each vendor"""
+    data = []
+    for v in vendors:
+        tmp_trace = go.Scatter(
+            x=rd.index,
+            y=rd[f"{v}_total"] - cd[f"{v}_total"] ,
+            name=v,
+            marker=dict(size=10),
+            line=dict(width=2), 
+        )
+        data.append(tmp_trace)
+
+    fig = go.Figure(data=data, layout=BASIC_LAYOUT)
+
+    title = f"Total {freq} Net Income By Vendor"
+    if annualize_flag:
+        title += " (Annualized)"
+
+    fig.update_layout(
+        yaxis=dict(title="$"),
+        title=title,
+        hovermode="x unified"
+    )
+    return fig
+
+def plot_vendor_pnl(rd, cd, vendor, freq, annualize_flag):
+    """Stacked bar chart for costs and revenue and total"""
+    data = []
+    # add revenue traces
+    rev_cols = [c for c in rd.columns if vendor in c and 'total' not in c]
+    for c in rev_cols:
+        tmp_trace = go.Bar(
+            x=rd.index,
+            y=rd[c],
+            name=c.replace(vendor, "").replace("_", " ").title()
+        )
+        data.append(tmp_trace)
+
+    # add cost traces
+    cost_cols = [c for c in cd.columns if vendor in c and 'total' not in c]
+    for c in cost_cols:
+        tmp_trace = go.Bar(
+            x=rd.index,
+            y=cd[c] * -1.,
+            name=c.replace(vendor, "").replace("_", " ").title()
+        )
+        data.append(tmp_trace)
+
+    total_trace = go.Scatter(
+            x=rd.index,
+            y=rd[f"{vendor}_total"] - cd[f"{vendor}_total"] ,
+            name='Net',
+            marker=dict(size=10),
+            line=dict(width=4), 
+        )
+
+    data.append(total_trace)
+
+    fig = go.Figure(data=data, layout=BASIC_LAYOUT)
+    fig.update_layout(barmode = 'relative')
+
+    title = f"Total {freq} Net Income By Vendor"
     if annualize_flag:
         title += " (Annualized)"
 
