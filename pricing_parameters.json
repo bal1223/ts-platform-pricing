@@ -1,6 +1,30 @@
 {
     "stripe": {
-        "costs": [],
+        "costs": {
+            "platform": {
+                "implementation_fee": 9000,
+                "base_monthly_fee": 0,
+                "card_program_fee": 0,
+                "discounts": null
+            },
+            "accounts": {
+                "new_fee": 3,
+                "ongoing_fee": 3
+            },
+            "money_movement": {
+                "ach_out_fee": 0.25,
+                "dom_wire_out_fee": 10,
+                "intl_wire_out_fee": null,
+                "wire_in_fee": 2,
+                "check_in_fee": 0.75,
+                "check_out_fee": 1.5,
+                "bill_pay_fee": 0
+            },
+            "cards": {
+                "physical_card_fee": 3.75,
+                "virtual_card_fee": 0.10
+            }
+        },
         "revenue": {
             "interchange": [
                 {
@@ -26,7 +50,34 @@
         }
     },
     "unit": {
-        "costs": [],
+        "costs": {
+            "platform": {
+                "implementation_fee": 0,
+                "base_monthly_fee": 5100,
+                "card_program_fee": 0,
+                "discounts": {
+                    "0": 1000,
+                    "1": 500
+                }
+            },
+            "accounts": {
+                "new_fee": 15.6,
+                "ongoing_fee": 1.5
+            },
+            "money_movement": {
+                "ach_out_fee": 0.10,
+                "dom_wire_out_fee": 5,
+                "intl_wire_out_fee": null,
+                "wire_in_fee": 0,
+                "check_in_fee": 0.70,
+                "check_out_fee": 1.5,
+                "bill_pay_fee": 0.25
+            },
+            "cards": {
+                "physical_card_fee": 4.00,
+                "virtual_card_fee": 0.20
+            }
+        },
         "revenue": {
             "interchange": [
                 {
@@ -52,7 +103,31 @@
         }
     },
     "treasury_prime": {
-        "costs": [],
+        "costs": {
+            "platform": {
+                "implementation_fee": 10000,
+                "base_monthly_fee": 10000,
+                "card_program_fee": 2500,
+                "discounts": null
+            },
+            "accounts": {
+                "new_fee": 1,
+                "ongoing_fee": 1
+            },
+            "money_movement": {
+                "ach_out_fee": 0.10,
+                "dom_wire_out_fee": 20,
+                "intl_wire_out_fee": 40,
+                "wire_in_fee": 0,
+                "check_in_fee": 0.75,
+                "check_out_fee": 1.25,
+                "bill_pay_fee": 1.30
+            },
+            "cards": {
+                "physical_card_fee": 3.75,
+                "virtual_card_fee": 0.10
+            }
+        },
         "revenue": {
             "interchange": [
                 {

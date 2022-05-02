@@ -27,7 +27,7 @@ def run_app():
         # Avg deposit balance, account count, card counts
         with st.expander("Accounts"):
             SCENARIO_SETTINGS.update({'avg_deposits_balance': st.slider("Deposits Balance:", min_value = 100000, max_value = 500000, value=300000, step=25000)})
-            SCENARIO_SETTINGS.update({'acct_cnt': st.number_input("Accounts", value=2.5, step=0.5, help="Ex: company could have an account for each store location.")})            
+            SCENARIO_SETTINGS.update({'acct_cnt': st.number_input("Accounts", value=2, step=1, help="Ex: company could have an account for each store location.")})            
 
             # Maybe make this fixed?
             SCENARIO_SETTINGS.update({'phy_card_cnt': st.number_input("Physical Cards Issued", value=3, step=1, help="Physical branded cards issued per company.")})
@@ -73,10 +73,10 @@ def run_app():
             SCENARIO_SETTINGS.update({'net_ic': st.slider("Net Interchange (%):", min_value=1.0, max_value=3.0, value=2.0, step=0.1, key="net_ic")})
         
         with st.expander("Interest on Deposits"):
-            SCENARIO_SETTINGS.update({'yield_curve_flag': st.checkbox("Use current yield curve?")})
-            if SCENARIO_SETTINGS.get('yield_curve_flag'):
-                #TODO - add loading in a static page for fed rate
-                pass
+            SCENARIO_SETTINGS.update({'yield_curve_flag': st.checkbox("Use yield curve?")})
+            if SCENARIO_SETTINGS.get('yield_curve_flag'): # If yield curve selected, use the values from the csv
+                fed_rates = pd.read_csv('fed_rate.csv', index_col=0, parse_dates=[0])
+                SCENARIO_SETTINGS.update({'fed_rate': fed_rates.effr.values})
             else:
                 SCENARIO_SETTINGS.update({'fed_rate': st.slider("Flat Fed Rate (%):", value=0.50, min_value=0.0, max_value=2.50, step=0.25, key="fed_rate")})
         
@@ -88,7 +88,7 @@ def run_app():
             SCENARIO_SETTINGS.update({'vendor_exc': st.multiselect("Vendor Exclusions:", options=['stripe','unit','treasury_prime','column'])})
 
     ## DATA COMPUATION
-    # Load in migration plan
+    # Load in migration plan and fed rate
     migration_plan = pd.read_csv('migration_assumptions.csv', index_col=0, parse_dates=[0])
 
     # Get list of vendors for this run
@@ -103,20 +103,20 @@ def run_app():
 
     # Key Data
     key_data = data_fns.generate_key_data(migration_plan, SCENARIO_SETTINGS)
+    # st.write(key_data["New Accounts"].values[0])
 
     # platform_rev
     rev_data = data_fns.generate_rev_data(key_data, SCENARIO_SETTINGS, PRICING, VENDORS)
 
     # platform_costs
-
-    # platform_pnl
+    cost_data = data_fns.generate_cost_data(key_data, SCENARIO_SETTINGS, PRICING, VENDORS)
 
     # Digital transformation scenario
     
     # Main body
     # 1. Description and intro
     with st.container():
-        with st.expander("Description"):
+        with st.expander("About this app"):
             st.write("This is some  text to explain what this is.")
 
     # 2. Platform growth
@@ -148,6 +148,16 @@ def run_app():
     with st.container():
         st.markdown("#### Net Income")
 
+        st.plotly_chart(plt.plot_pnl_comparison(rev_data, cost_data, VENDORS, freq=SCENARIO_SETTINGS.get('chart_freq'), 
+                                                    annualize_flag=SCENARIO_SETTINGS.get('annualize_flag')), use_container_width=True)
+
+        # Expander for costs by vendor
+        st.markdown('##### By Vendor')
+        for v in VENDORS:
+            with st.expander(v.title()):
+                st.plotly_chart(plt.plot_vendor_pnl(rev_data, cost_data, v, freq=SCENARIO_SETTINGS.get('chart_freq'), 
+                                                    annualize_flag=SCENARIO_SETTINGS.get('annualize_flag')), use_container_width=True)
+
     # 4. Revenue
     st.markdown("---")
     with st.container():
@@ -155,6 +165,7 @@ def run_app():
 
         # Total revenue
         st.plotly_chart(plt.plot_revenue_comparison(rev_data, 
+                                                    key_data,
                                                     VENDORS, 
                                                     freq=SCENARIO_SETTINGS.get('chart_freq'), 
                                                     annualize_flag=SCENARIO_SETTINGS.get('annualize_flag')), use_container_width=True)
@@ -164,7 +175,8 @@ def run_app():
             col1, col2 = st.columns(2)
 
             with col1:
-                st.plotly_chart(plt.plot_revenue_comparison(rev_data, 
+                st.plotly_chart(plt.plot_revenue_comparison(rev_data,
+                                                            key_data, 
                                                             VENDORS, 
                                                             freq=SCENARIO_SETTINGS.get('chart_freq'), 
                                                             annualize_flag=SCENARIO_SETTINGS.get('annualize_flag'),
@@ -172,6 +184,7 @@ def run_app():
 
             with col2:
                 st.plotly_chart(plt.plot_revenue_comparison(rev_data, 
+                                                            key_data,
                                                             VENDORS, 
                                                             freq=SCENARIO_SETTINGS.get('chart_freq'), 
                                                             annualize_flag=SCENARIO_SETTINGS.get('annualize_flag'),
@@ -223,16 +236,56 @@ def run_app():
     with st.container():
         st.markdown("#### Costs")
 
+        # Total costs by vendor
+        st.plotly_chart(plt.plot_cost_comparison(cost_data, 
+                                                 VENDORS, 
+                                                 freq=SCENARIO_SETTINGS.get('chart_freq'), 
+                                                 annualize_flag=SCENARIO_SETTINGS.get('annualize_flag')), use_container_width=True)
+
+
+        # Expander for costs by vendor
+        st.markdown('##### By Vendor')
+        for v in VENDORS:
+            with st.expander(v.title()):
+                col1, col2 = st.columns([4, 1])
+                with col1:
+                    st.plotly_chart(plt.plot_vendor_costs_by_category(cost_data, v, freq=SCENARIO_SETTINGS.get('chart_freq'), annualize_flag=SCENARIO_SETTINGS.get('annualize_flag')), use_container_width=True)
+
+                with col2:
+                    st.write("this is some text on the side") # look up read me by vendor name
+
+
         # Payments (Stripe)
 
+        # Columns to have commentary on vendor revenue
+        with st.expander("Cost Details"):
+            col1, col2, col3 = st.columns(3)
+
+            with col1:
+                st.markdown("##### Unit")
+                st.markdown('###### Interchange')
+                st.markdown('###### Interest')
+
+
+            with col2:
+                st.markdown("##### Stripe")
+                st.markdown('###### Interchange')
+                st.markdown('###### Interest')
+
+            with col3:
+                st.markdown("##### Treasury Prime")
+                st.markdown('###### Interchange')
+                st.markdown('###### Interest')    
+
     # 6. Scenario Variation: Digital Transition
-    st.markdown("---")
-    with st.container():
-        st.markdown("### Scenario Variation: Network Digital Transition")
+    # st.markdown("---")
+    # with st.container():
+    #     st.markdown("### Scenario Variation: Network Digital Transition")
 
     # 7. Data Tables
     st.markdown("---")
     st.markdown("#### Data")
+    st.write("Expand to view the raw data.")
     with st.expander("Onboarding Plan"):
         st.dataframe(migration_plan)
 
@@ -243,7 +296,7 @@ def run_app():
         st.dataframe(rev_data)
 
     with st.expander("Cost Data"):
-        # st.dataframe(rev_data)
+        st.dataframe(cost_data)
         pass
 
 if __name__ == '__main__':
