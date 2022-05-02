@@ -1,4 +1,3 @@
 plotly
 datetime
-json
 numpy
