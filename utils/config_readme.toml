@@ -1,8 +1,164 @@
-[app]
-
-
 [tooltips]
+avg_deposits = """Average monthly deposits across all accounts."""
+acct_cnt = """Ex: company could have an account for each store location."""
+phy_card_cnt = """Physical branded cards issued per company."""
+virt_card_cnt = """Virtual cards issued per company."""
+
+inc_trans_cnt = """Total incoming transactions per month."""
+inc_trans_amt = """Aggregate amount of monthly incoming transactions."""
+
+out_trans_cnt = """Total outgoing transactions per month."""
+out_trans_amt = """Aggregate amount of monthly outgoing transactions."""
+
+
+net_ic = """Interchange eligible for revenue share, net of network and processing fees."""
+yield_curve_flag = """Use projections for EFFR based market data from late April."""
+fed_rate = """Use a flat EFFR for revenue from interest on deposits."""
+
+x_axis = """Set charts x-axis to be based on time or number of Teamshares companies."""
+annualize_flag = """Annualize the monthly or quarterly dollar values in the charts."""
+chart_freq = """Chart by monthly or quarterly frequency."""
+vendor_exc = """Select vendors to exclude from charts."""
+
+[app]
+app_description = """
+This app allows you to assess the impact on the economics of the proposed banking and cards platform due to changes 
+in financial operation assumptions of our network companies. The right sidebar contains settings that will
+__dynamically__ update the charts below when changed. Simply expand the section you would like to edit and 
+adjust the values. Default values have been selected based on our interviews with Presidents and review of 
+available company data. 
+
+The results are quite sensitive to the incoming and outgoing transaction volume and mix. Regarding the "Breakdown
+by Type", you will notice a "checksum" value. This dynamically totals the money movement mix. You will want to make
+sure this total is 100. __Please note there is no data validation that prevents values from being greater or less than 100.__
+
+If you have any questions or feedback, please reach out to Brad on slack.
+"""
+
+[onboarding]
+intro = """
+This section illustrates a (tentative) base case plan for the migration of our companies onto our
+financial products platform. Beginning with ~3 companies at the start of Q4, we slowly ramp up
+onboarding over the next ~9 months until we have caught up with expected new company growth in the 
+middle of 2023. From then on, we migrate companies on pace with our acquisition speed.
+"""
+
+comments = """
+At an average company monthly deposits balance of \\$%s total deposits would reach \\$%smm at 100 companies 
+and \\$%smm at 250 companies. Total monthly spend across the network will grow commensurately and, 
+at the current base assumed transaction type mix, will be dominated by issuance of checks.
+"""
+
+[net_income]
+intro = """
+This section presents the net income of the platforms over time. This is computed as total revenue earned through
+share agreements on interchange and fees on deposits interest less the costs incurred for using the banking-as-a-service
+platform. Toggle the scenario assumptions to see how the values change. Check the "Annualize values" flag to see how the annual
+run rate evolves over time.
+"""
+
+by_vendor = """
+Expand the vendor sections below to see the breakdown of net income for specific providers.
+"""
 
 [revenue]
+intro = """
+This section breaks down the revenue component. Expand the sections below to see details on the current terms for each vendor.
+"""
+
+comments = """
+Fees earned through interest on deposits would be the primary revenue driver, comprising ~80% of the total revenue earned. 
+The amount earned is a function of the Effective Federal Funds Rate (EFFR) and total deposits. The formula varies by partner bank. 
+Our would-be partner bank through Unit -  Blue Ridge Bank - offers the best terms. 
+This is the primary driver behind Unit’s clear outperformance under the base assumptions.
+"""
+
+unit_ic = """
+Share of net interchange on card spend:
+* 70% on spend up to \\$10mm
+* 75% on spend \\$10-\\$20mm
+* 80% on spend over \\$20mm
+"""
+
+unit_int = """
+Blue Ridge Bank: Pays EFFR less 20 basis points
+"""
+
+stripe_ic = """
+__Fixed__ interchange percentage on card spend:
+* 1.15% on spend up to \\$10mm
+* 1.30% on spend \\$10-\\$20mm
+* 1.50% on spend over \\$20mm
+"""
+
+stripe_int = """
+Evolve B&T: Pays approx. 40% of EFFR
+"""
+
+tp_ic = """
+Share of net interchange on card spend:
+* 60% on spend up to \\$5mm
+* 75% on spend \\$5-\\$10mm
+* 90% on spend over \\$10mm
+"""
+
+tp_int = """
+Piermont Bank: Pays 50% of midpoint of Fed's target range (typically ~12.5 bps less EFFR)
+"""
 
 [costs]
+intro = """
+This section digs into the cost side of each platform. Expand the sections below to see details on the current terms for each vendor.
+"""
+
+comments = """
+A key difference is Unit and Treasury Prime have monthly fixed costs, while Stripe's are all usage based. 
+Ultimately, all three vendors have comparable costs under the base assumptions. At scale, the majority of 
+the cost of these platforms goes to issuing checks (see expanded sections). 
+Encouraging our companies to move toward alternative electronic payment methods will dramatically reduce the costs of the platform. 
+"""
+
+unit_costs = """
+* Implemenation: \\$0\\*
+* Platform: \\$5,100/mo
+* Accounts (new): \\$15.6
+* Accounts (main.): \\$1.5
+* ACH Orig.: \\$0.1
+* Domestic Wire: \\$5
+* Mobile Check Deposit: \\$0.7
+* Check Issuance: \\$1.5
+* Bill Pay: \\$0.25
+* Physical Card: \\$4
+* Virtual Card: \\$0.2
+\\* \\$12k waived
+"""
+
+stripe_costs = """
+* Implementation: \\$9k
+* Platform: \\$0/mo
+* Accounts (new): \\$3
+* Accounts (main.): \\$3
+* ACH Orig.: \\$0.25
+* Domestic Wire: \\$10
+* Mobile Check Deposit: \\$0.75\\*
+* Check Issuance: \\$1.50\\*
+* Bill Pay: NA
+* Physical Card: \\$3.75
+* Virtual Card: \\$0.1
+\\* Not live; estimated pricing
+"""
+
+tp_costs = """
+* Implementation: \\$10k
+* Platform: \\$12.5k/mo\\*
+* Accounts (new): \\$1
+* Accounts (main.): \\$1
+* ACH Orig.: \\$0.10
+* Domestic Wire: \\$20
+* Mobile Check Deposit: \\$0.75
+* Check Issuance: \\$1.25
+* Bill Pay: \\$1.3
+* Physical Card: \\$3.75
+* Virtual Card: \\$0.1
+\\* \\$10k platform + \\$2.5k card program
+"""
