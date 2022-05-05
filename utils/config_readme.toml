@@ -92,7 +92,7 @@ __Fixed__ interchange percentage on card spend:
 """
 
 stripe_int = """
-Evolve B&T: Pays approx. 40% of EFFR
+Evolve B&T: Pays approx. 46% of EFFR
 """
 
 tp_ic = """
