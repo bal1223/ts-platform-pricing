@@ -226,16 +226,16 @@ def rev_interest_on_deposits(deposits_series, effr, vendor_partner_bank):
         # Communicated to be roughly half of the Fed Rate, but Stripe was non-commital.
         # ! Update: Currently 50% of 92% of EFFR for Evolve
         if vendor_partner_bank == 'Evolve B&T':
-            tmp_int = d * 0.92 * 0.5 * r/100.
+            tmp_int = d * 0.92 * 0.5 * r/100. / 12.
             
         # Piermont is 50% of the midpoint of the fed target range (if above 2mm). This is assumed to be high: Fed Rate; low: Fed Rate less 25bps.
         # This is what the range has historically been and is equal to r - 0.125)
         if vendor_partner_bank == 'Piermont' and d > 2000000:
-            tmp_int = d * 0.5 * (r-0.125)/100.
+            tmp_int = d * 0.5 * (r-0.125)/100. / 12.
         
         # Blue Ridge logic is deposits times Fed Rate less 20bps
         if vendor_partner_bank == 'Blue Ridge':
-            tmp_int = d * (r-0.20)/100.
+            tmp_int = d * (r-0.20)/100. / 12.
 
         interest_rev.append(tmp_int)
     
